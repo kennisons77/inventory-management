@@ -120,6 +120,34 @@ class CreatePurchaseOrderRequest(BaseModel):
     expected_delivery_date: str
     notes: Optional[str] = None
 
+class RestockingOrderItem(BaseModel):
+    sku: str
+    name: str
+    quantity: int
+    unit_cost: float
+
+class CreateRestockingOrderRequest(BaseModel):
+    items: List[RestockingOrderItem]
+    total_cost: float
+    warehouse: Optional[str] = None
+    category: Optional[str] = None
+
+class RestockingOrder(BaseModel):
+    id: str
+    order_number: str
+    items: List[dict]
+    status: str
+    order_date: str
+    expected_delivery: str
+    total_value: float
+    customer: str
+    warehouse: Optional[str] = None
+    category: Optional[str] = None
+
+# In-memory store for restocking orders
+restocking_orders: List[dict] = []
+restocking_order_counter = 0
+
 # API endpoints
 @app.get("/")
 def root():
@@ -148,8 +176,11 @@ def get_orders(
     status: Optional[str] = None,
     month: Optional[str] = None
 ):
-    """Get all orders with optional filtering"""
-    filtered_orders = apply_filters(orders, warehouse, category, status)
+    """Get all orders with optional filtering (includes restocking orders)"""
+    # Combine regular orders and restocking orders
+    all_orders = orders + restocking_orders
+
+    filtered_orders = apply_filters(all_orders, warehouse, category, status)
     filtered_orders = filter_by_month(filtered_orders, month)
     return filtered_orders
 
@@ -272,6 +303,84 @@ def get_quarterly_reports():
     # Sort by quarter
     result.sort(key=lambda x: x['quarter'])
     return result
+
+@app.get("/api/restocking/recommendations", response_model=List[dict])
+def get_restocking_recommendations():
+    """Get demand forecasts sorted by demand gap (forecasted - current), with computed fields"""
+    from datetime import datetime
+
+    recommendations = []
+    for forecast in demand_forecasts:
+        demand_gap = forecast.get("forecasted_demand", 0) - forecast.get("current_demand", 0)
+        # Only include items with positive demand gap
+        if demand_gap > 0:
+            unit_cost = forecast.get("unit_cost", 0)
+            recommendations.append({
+                "id": forecast["id"],
+                "item_sku": forecast["item_sku"],
+                "item_name": forecast["item_name"],
+                "current_demand": forecast["current_demand"],
+                "forecasted_demand": forecast["forecasted_demand"],
+                "demand_gap": demand_gap,
+                "unit_cost": unit_cost,
+                "restock_cost": demand_gap * unit_cost,
+                "trend": forecast["trend"],
+                "period": forecast["period"],
+                "category": forecast.get("category", ""),
+                "warehouse": forecast.get("warehouse", "")
+            })
+
+    # Sort by demand gap descending (highest gap first)
+    recommendations.sort(key=lambda x: x["demand_gap"], reverse=True)
+    return recommendations
+
+@app.post("/api/restocking/orders", response_model=RestockingOrder)
+def create_restocking_order(request: CreateRestockingOrderRequest):
+    """Create a restocking order from selected items"""
+    from datetime import datetime, timedelta
+
+    global restocking_order_counter
+
+    now = datetime.now()
+    restocking_order_counter += 1
+    order_number = f"RST-{now.year}-{restocking_order_counter:04d}"
+
+    # Convert items to Order shape
+    items_list = []
+    for item in request.items:
+        items_list.append({
+            "sku": item.sku,
+            "name": item.name,
+            "quantity": item.quantity,
+            "unit_price": item.unit_cost
+        })
+
+    # Calculate expected delivery (14 days from now)
+    expected_delivery = now + timedelta(days=14)
+
+    # Create order object
+    order = {
+        "id": f"rst-{restocking_order_counter}",
+        "order_number": order_number,
+        "customer": "Internal Restocking",
+        "items": items_list,
+        "status": "Restocking",
+        "order_date": now.isoformat(),
+        "expected_delivery": expected_delivery.isoformat(),
+        "total_value": request.total_cost,
+        "warehouse": request.warehouse,
+        "category": request.category
+    }
+
+    # Store in memory
+    restocking_orders.append(order)
+
+    return order
+
+@app.get("/api/restocking/orders", response_model=List[RestockingOrder])
+def get_restocking_orders():
+    """Get all restocking orders"""
+    return restocking_orders
 
 @app.get("/api/reports/monthly-trends")
 def get_monthly_trends():

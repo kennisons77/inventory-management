@@ -304,6 +304,27 @@ export default {
     noTasks: 'No tasks yet. Add your first task above!'
   },
 
+  // Restocking
+  restocking: {
+    title: 'Restocking Recommendations',
+    description: 'Set your available budget to see prioritized restock recommendations based on demand forecast gaps.',
+    budget: 'Available Budget',
+    budgetUsed: 'budget used',
+    itemsSelected: 'items selected',
+    placeOrder: 'Place Order',
+    orderPlaced: 'Order placed successfully! View it in the Orders tab.',
+    noItems: 'No items with positive demand gaps found.',
+    columns: {
+      item: 'Item',
+      sku: 'SKU',
+      demandGap: 'Demand Gap',
+      unitCost: 'Unit Cost',
+      restockQty: 'Restock Qty',
+      totalCost: 'Total Cost',
+      included: 'In Order'
+    }
+  },
+
   // Language
   language: {
     english: 'English',
