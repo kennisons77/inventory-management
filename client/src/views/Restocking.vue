@@ -153,7 +153,14 @@ export default {
       try {
         loading.value = true
         error.value = null
-        recommendations.value = await api.getRestockingRecommendations()
+        const data = await api.getRestockingRecommendations()
+        // Transform API response to include computed fields for display
+        recommendations.value = data.map(item => ({
+          ...item,
+          sku: item.item_sku,
+          restock_qty: item.demand_gap,
+          total_cost: item.restock_cost
+        }))
       } catch (err) {
         error.value = t('common.error') + ': Failed to load recommendations'
         console.error(err)
@@ -166,7 +173,19 @@ export default {
       if (selectedItems.value.length === 0) return
       try {
         orderLoading.value = true
-        await api.createRestockingOrder({ items: selectedItems.value })
+        // Transform items to match API schema
+        const orderItems = selectedItems.value.map(item => ({
+          sku: item.item_sku,
+          name: item.item_name,
+          quantity: item.demand_gap,
+          unit_cost: item.unit_cost
+        }))
+        await api.createRestockingOrder({
+          items: orderItems,
+          total_cost: totalCost.value,
+          warehouse: selectedItems.value[0]?.warehouse,
+          category: selectedItems.value[0]?.category
+        })
         showSuccess.value = true
         setTimeout(() => {
           showSuccess.value = false
