@@ -304,6 +304,27 @@ export default {
     noTasks: 'タスクがありません。上記からタスクを追加してください！'
   },
 
+  // Restocking
+  restocking: {
+    title: '在庫補充推奨',
+    description: '利用可能な予算を設定して、需要予測ギャップに基づいた優先度の高い在庫補充推奨を見てください。',
+    budget: '利用可能予算',
+    budgetUsed: '予算を使用',
+    itemsSelected: 'アイテムを選択',
+    placeOrder: 'オーダーを発注',
+    orderPlaced: 'オーダーが正常に発注されました！ [注文] タブで確認できます。',
+    noItems: '正の需要ギャップを持つアイテムが見つかりません。',
+    columns: {
+      item: 'アイテム',
+      sku: 'SKU',
+      demandGap: '需要ギャップ',
+      unitCost: '単価',
+      restockQty: '補充数量',
+      totalCost: '合計コスト',
+      included: 'オーダーに含む'
+    }
+  },
+
   // Language
   language: {
     english: 'English',
